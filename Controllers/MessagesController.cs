@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using System.Web.Http;
 using System.Linq;
 using System.Collections.Generic;
+using System.Collections;
 using System.Diagnostics;
 using System.Text.RegularExpressions;
 using Microsoft.Bot.Builder.Dialogs;
@@ -53,8 +54,6 @@ namespace DooChatBot
 
         public static int pagePerCardCnt = 10;
         public static int pageRotationCnt = 0;
-        public static int fbLeftCardCnt = 0;
-        public static int facebookpagecount = 0;
         public static string FB_BEFORE_MENT = "";
 
         public static List<RelationList> relationList = new List<RelationList>();
@@ -79,17 +78,19 @@ namespace DooChatBot
 
         public static DbConnect db = new DbConnect();
         public static DButil dbutil = new DButil();
-
+        /*
+         * 숫자가 들어왔을 시에 처리 로직 변경으로 새롭게 추가되는 부분임.
+         */
+        public static Hashtable qTempTable = new Hashtable();
         public async Task<HttpResponseMessage> Post([FromBody]Activity activity)
         {
-
             string cashOrgMent = "";
 
             //DbConnect db = new DbConnect();
             //DButil dbutil = new DButil();
-            DButil.HistoryLog("db connect !! ");
+            DButil.HistoryLog("db connect !! " );
             //HttpResponseMessage response = Request.CreateResponse(HttpStatusCode.OK);
-            HttpResponseMessage response;
+            HttpResponseMessage response ;
 
             Activity reply1 = activity.CreateReply();
             Activity reply2 = activity.CreateReply();
@@ -121,13 +122,9 @@ namespace DooChatBot
                 }
             };
 
-            //DButil.HistoryLog("activity.Recipient.Name : " + activity.Recipient.Name);
-            //DButil.HistoryLog("activity.Name : " + activity.Name);
-
             if (activity.Type == ActivityTypes.ConversationUpdate && activity.MembersAdded.Any(m => m.Id == activity.Recipient.Id))
             {
                 startTime = DateTime.Now;
-                //activity.ChannelId = "facebook";
                 //파라메터 호출
                 if (LUIS_NM.Count(s => s != null) > 0)
                 {
@@ -201,7 +198,7 @@ namespace DooChatBot
                     //initReply.AttachmentLayout = AttachmentLayoutTypes.Carousel;
 
                     Attachment tempAttachment;
-
+                    
                     if (dialogs.dlgType.Equals(CARDDLG))
                     {
                         foreach (CardList tempcard in dialogs.dialogCard)
@@ -212,23 +209,10 @@ namespace DooChatBot
                     }
                     else
                     {
-                        if (activity.ChannelId.Equals("facebook") && string.IsNullOrEmpty(dialogs.cardTitle) && dialogs.dlgType.Equals(TEXTDLG))
-                        {
-                            Activity reply_facebook = activity.CreateReply();
-                            reply_facebook.Recipient = activity.From;
-                            reply_facebook.Type = "message";
-                            DButil.HistoryLog("facebook  card Text : " + dialogs.cardText);
-                            reply_facebook.Text = dialogs.cardText;
-                            var reply_ment_facebook = connector.Conversations.SendToConversationAsync(reply_facebook);
-                            //SetActivity(reply_facebook);
-
-                        }
-                        else
-                        {
-                            tempAttachment = dbutil.getAttachmentFromDialog(dialogs, activity);
-                            initReply.Attachments.Add(tempAttachment);
-                        }
+                        tempAttachment = dbutil.getAttachmentFromDialog(dialogs, activity);
+                        initReply.Attachments.Add(tempAttachment);
                     }
+                    
                     await connector.Conversations.SendToConversationAsync(initReply);
                 }
 
@@ -241,6 +225,13 @@ namespace DooChatBot
                 DButil.HistoryLog("* activity.Type : " + activity.ChannelData);
                 DButil.HistoryLog("* activity.Recipient.Id : " + activity.Recipient.Id);
                 DButil.HistoryLog("* activity.ServiceUrl : " + activity.ServiceUrl);
+
+                qTempTable = new Hashtable();
+                qTempTable.Add(1, "VPN+");
+                qTempTable.Add(2, "워터마크+");
+                qTempTable.Add(3, "비업무사이트+");
+                qTempTable.Add(4, "USB+");
+                qTempTable.Add(5, "파일업로드+");
             }
             else if (activity.Type == ActivityTypes.Message)
             {
@@ -251,7 +242,32 @@ namespace DooChatBot
                     Debug.WriteLine("* activity.Type == ActivityTypes.Message ");
                     channelID = activity.ChannelId;
                     string orgMent = activity.Text;
-
+                    /*
+                     * 들어온 데이터가 숫자인지 아닌지 판단
+                     * 숫자가 들어오면 임시해시테이블을 통해서 검색어를 재조정한다.
+                     */
+                    bool checkNum = Regex.IsMatch(orgMent, @"^\d+$");
+                    String[] msgEntity = null;
+                    String newMessageTemp = null;
+                    String newMessage = null;
+                    String plusEntity = "";
+                    if (checkNum)
+                    {
+                        int tempMessageNum = Int32.Parse(orgMent);
+                        newMessageTemp = (String)qTempTable[tempMessageNum];
+                        msgEntity = newMessageTemp.Split('+');
+                        newMessage = msgEntity[0];
+                        if (msgEntity[1] == null || msgEntity[1] == "")
+                        {
+                            plusEntity = msgEntity[1];
+                        }
+                        else
+                        {
+                            plusEntity = "," + msgEntity[1];
+                        }
+                        
+                        orgMent = newMessage;
+                    }
 
                     apiFlag = "COMMON";
 
@@ -317,8 +333,27 @@ namespace DooChatBot
                         luisIntent = cacheList.luisIntent;
                         luisEntities = cacheList.luisEntities;
 
-                        String fullentity = db.SearchCommonEntities;
+                        //String fullentity = db.SearchCommonEntities;
+                        String fullentity_ = db.SearchCommonEntities+plusEntity;
+                        String[] DupCheckArray = fullentity_.Split(',');
+                        String[] DupCheck = DupCheckArray.Distinct().ToArray();
+                        String fullentity = "";
+                        for (int i=0; i<DupCheck.Length; i++)
+                        {
+                            if (i == 0)
+                            {
+                                fullentity = DupCheck[i];
+                            }
+                            else
+                            {
+                                fullentity = fullentity + "," + DupCheck[i];
+                            }
+                            
+                        }
+
                         DButil.HistoryLog("fullentity : " + fullentity);
+                        Debug.WriteLine("fullentity log : " + fullentity);
+
                         if (!string.IsNullOrEmpty(fullentity) || !fullentity.Equals(""))
                         {
                             if (!String.IsNullOrEmpty(luisEntities))
@@ -390,33 +425,66 @@ namespace DooChatBot
                             }
                         }
 
-
+                        
                         if (apiFlag.Equals("COMMON") && relationList.Count > 0)
                         {
 
                             //context.Call(new CommonDialog("", MessagesController.queryStr), this.ResumeAfterOptionDialog);
-                            String beforeMent = "";
-                            facebookpagecount = 1;
-                            //int fbLeftCardCnt = 0;
-
-                            if (conversationhistory.commonBeforeQustion != null && conversationhistory.commonBeforeQustion != "")
-                            {
-                                DButil.HistoryLog(fbLeftCardCnt + "{fbLeftCardCnt} :: conversationhistory.commonBeforeQustion : " + conversationhistory.commonBeforeQustion);
-                                if (conversationhistory.commonBeforeQustion.Equals(orgMent) && activity.ChannelId.Equals("facebook") && fbLeftCardCnt > 0)
-                                {
-                                    DButil.HistoryLog("beforeMent : " + beforeMent);
-                                    conversationhistory.facebookPageCount++;
-                                }
-                                else
-                                {
-                                    conversationhistory.facebookPageCount = 0;
-                                    fbLeftCardCnt = 0;
-                                }
-                            }
-
                             for (int m = 0; m < MessagesController.relationList.Count; m++)
                             {
                                 DialogList dlg = db.SelectDialog(MessagesController.relationList[m].dlgId);
+                                qTempTable = new Hashtable();
+                                String test = dlg.cardText;
+                                String test2 = Regex.Replace(test, @"[^a-zA-Z0-9ㄱ-힣]", "", RegexOptions.Singleline);
+                                String onlyNumCheck = Regex.Replace(test2, @"\D", "");
+
+                                Regex cntStr = new Regex("12345"); //1.2.3.4. 이런식으로 넘어갈 테니까...답변 중에 12345 가 연속적으로 나오는 것은 없다.
+                                int cntStrCount = int.Parse(cntStr.Matches(onlyNumCheck, 0).Count.ToString());
+                                
+                                if(cntStrCount > 0)
+                                {
+                                    for (int i = 0; i < 10; i++)
+                                    {
+                                        test2 = test2.Replace("1", "#");
+                                        test2 = test2.Replace("2", "#");
+                                        test2 = test2.Replace("3", "#");
+                                        test2 = test2.Replace("4", "#");
+                                        test2 = test2.Replace("5", "#");
+                                        test2 = test2.Replace("6", "#");
+                                        test2 = test2.Replace("7", "#");
+                                        test2 = test2.Replace("8", "#");
+                                        test2 = test2.Replace("9", "#");
+                                    }
+                                    test2.Replace("##", "#");
+
+                                    String[] tempData = test2.Split('#');
+                                    
+                                    for (int j = 0; j < tempData.Length; j++)
+                                    {
+                                        //여기의 데이터는 예외사항이다.
+                                        if(tempData[j].Equals("사용기간")||
+                                            tempData[j].Equals("결재라인") || 
+                                            tempData[j].Equals("요청서작성방법") || 
+                                            tempData[j].Equals("대리신청") || 
+                                            tempData[j].Equals("권한회수") || 
+                                            tempData[j].Equals("권한상태") ||
+                                            tempData[j].Equals("웹하드사이트접속") ||
+                                            tempData[j].Equals("쇼핑사이트접속")
+                                            )
+                                        {
+                                            qTempTable.Add(j, tempData[j] + "+");//위의값은 공통사항이다.
+                                        }
+                                        else
+                                        {
+                                            qTempTable.Add(j, tempData[j] + "+" + fullentity);//entity 값도 같이 넣는다.
+                                        }
+                                    }
+                                }
+                                else
+                                {
+
+                                }
+                                
                                 Activity commonReply = activity.CreateReply();
                                 Attachment tempAttachment = new Attachment();
                                 DButil.HistoryLog("dlg.dlgType : " + dlg.dlgType);
@@ -425,40 +493,8 @@ namespace DooChatBot
                                     foreach (CardList tempcard in dlg.dialogCard)
                                     {
                                         DButil.HistoryLog("tempcard.card_order_no : " + tempcard.card_order_no);
-                                        if (conversationhistory.facebookPageCount > 0)
-                                        {
-                                            if (tempcard.card_order_no > (MAXFACEBOOKCARDS * facebookpagecount) && tempcard.card_order_no <= (MAXFACEBOOKCARDS * (facebookpagecount + 1)))
-                                            {
-                                                tempAttachment = dbutil.getAttachmentFromDialog(tempcard, activity);
-                                            }
-                                            else if (tempcard.card_order_no > (MAXFACEBOOKCARDS * (facebookpagecount + 1)))
-                                            {
-                                                fbLeftCardCnt++;
-                                                tempAttachment = null;
-                                            }
-                                            else
-                                            {
-                                                fbLeftCardCnt = 0;
-                                                tempAttachment = null;
-                                            }
-                                        }
-                                        else if (activity.ChannelId.Equals("facebook"))
-                                        {
-                                            DButil.HistoryLog("facebook tempcard.card_order_no : " + tempcard.card_order_no);
-                                            if (tempcard.card_order_no <= MAXFACEBOOKCARDS && fbLeftCardCnt == 0)
-                                            {
-                                                tempAttachment = dbutil.getAttachmentFromDialog(tempcard, activity);
-                                            }
-                                            else
-                                            {
-                                                fbLeftCardCnt++;
-                                                tempAttachment = null;
-                                            }
-                                        }
-                                        else
-                                        {
-                                            tempAttachment = dbutil.getAttachmentFromDialog(tempcard, activity);
-                                        }
+                                        
+                                        tempAttachment = dbutil.getAttachmentFromDialog(tempcard, activity);
 
                                         if (tempAttachment != null)
                                         {
@@ -469,19 +505,9 @@ namespace DooChatBot
                                 else
                                 {
                                     DButil.HistoryLog("facebook dlg.dlgId : " + dlg.dlgId);
-                                    if (activity.ChannelId.Equals("facebook") && string.IsNullOrEmpty(dlg.cardTitle) && dlg.dlgType.Equals(TEXTDLG))
-                                    {
-                                        commonReply.Recipient = activity.From;
-                                        commonReply.Type = "message";
-                                        DButil.HistoryLog("facebook  card Text : " + dlg.cardText);
-                                        commonReply.Text = dlg.cardText;
-
-                                    }
-                                    else
-                                    {
-                                        tempAttachment = dbutil.getAttachmentFromDialog(dlg, activity);
-                                        commonReply.Attachments.Add(tempAttachment);
-                                    }
+                                    
+                                    tempAttachment = dbutil.getAttachmentFromDialog(dlg, activity);
+                                    commonReply.Attachments.Add(tempAttachment);
 
                                 }
 
@@ -515,167 +541,8 @@ namespace DooChatBot
                             beforeMessgaeText = message.ToString();
 
                             Debug.WriteLine("SERARCH MESSAGE : " + message);
-                            //네이버 기사 검색
+                            
                             sorryflag = true;
-                            /*
-                            if ((message != null) && message.Trim().Length > 0)
-                            {
-                                //Naver Search API
-
-                                string url = "https://openapi.naver.com/v1/search/news.json?query=" + message + "&display=10&start=1&sort=sim"; //news JSON result 
-                                //string blogUrl = "https://openapi.naver.com/v1/search/blog.json?query=" + messgaeText + "&display=10&start=1&sort=sim"; //search JSON result 
-                                //string cafeUrl = "https://openapi.naver.com/v1/search/cafearticle.json?query=" + messgaeText + "&display=10&start=1&sort=sim"; //cafe JSON result 
-                                //string url = "https://openapi.naver.com/v1/search/blog.xml?query=" + query; //blog XML result
-                                HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
-                                request.Headers.Add("X-Naver-Client-Id", "Y536Z1ZMNv93Oej6TrkF");
-                                request.Headers.Add("X-Naver-Client-Secret", "cPHOFK6JYY");
-                                HttpWebResponse httpwebresponse = (HttpWebResponse)request.GetResponse();
-                                string status = httpwebresponse.StatusCode.ToString();
-                                if (status == "OK")
-                                {
-                                    Stream stream = httpwebresponse.GetResponseStream();
-                                    StreamReader reader = new StreamReader(stream, Encoding.UTF8);
-                                    string text = reader.ReadToEnd();
-
-                                    RootObject serarchList = JsonConvert.DeserializeObject<RootObject>(text);
-
-                                    Debug.WriteLine("serarchList : " + serarchList);
-                                    //description
-
-                                    if (serarchList.display == 1)
-                                    {
-                                        //Debug.WriteLine("SERARCH : " + Regex.Replace(serarchList.items[0].title, @"[^<:-:>-<b>-</b>]", "", RegexOptions.Singleline));
-
-                                        if (serarchList.items[0].title.Contains("코나"))
-                                        {
-                                            //Only One item
-                                            List<CardImage> cardImages = new List<CardImage>();
-                                            CardImage img = new CardImage();
-                                            img.Url = "";
-                                            cardImages.Add(img);
-
-                                            string searchTitle = "";
-                                            string searchText = "";
-
-                                            searchTitle = serarchList.items[0].title;
-                                            searchText = serarchList.items[0].description;
-
-
-
-                                            if (activity.ChannelId == "facebook")
-                                            {
-                                                searchTitle = Regex.Replace(searchTitle, @"[<][a-z|A-Z|/](.|)*?[>]", "", RegexOptions.Singleline).Replace("\n", "").Replace("<:", "").Replace(":>", "");
-                                                searchText = Regex.Replace(searchText, @"[<][a-z|A-Z|/](.|)*?[>]", "", RegexOptions.Singleline).Replace("\n", "").Replace("<:", "").Replace(":>", "");
-                                            }
-
-
-                                            LinkHeroCard card = new LinkHeroCard()
-                                            {
-                                                Title = searchTitle,
-                                                Subtitle = null,
-                                                Text = searchText,
-                                                Images = cardImages,
-                                                Buttons = null,
-                                                Link = Regex.Replace(serarchList.items[0].link, "amp;", "")
-                                            };
-                                            var attachment = card.ToAttachment();
-
-                                            intentNoneReply.Attachments = new List<Attachment>();
-                                            intentNoneReply.Attachments.Add(attachment);
-                                        }
-                                    }
-                                    else
-                                    {
-                                        //intentNoneReply.AttachmentLayout = AttachmentLayoutTypes.Carousel;
-                                        intentNoneReply.Attachments = new List<Attachment>();
-                                        for (int i = 0; i < serarchList.display; i++)
-                                        {
-                                            string searchTitle = "";
-                                            string searchText = "";
-
-                                            searchTitle = serarchList.items[i].title;
-                                            searchText = serarchList.items[i].description;
-
-                                            if (activity.ChannelId == "facebook")
-                                            {
-                                                searchTitle = Regex.Replace(searchTitle, @"[<][a-z|A-Z|/](.|)*?[>]", "", RegexOptions.Singleline).Replace("\n", "").Replace("<:", "").Replace(":>", "");
-                                                searchText = Regex.Replace(searchText, @"[<][a-z|A-Z|/](.|)*?[>]", "", RegexOptions.Singleline).Replace("\n", "").Replace("<:", "").Replace(":>", "");
-                                            }
-
-                                            if (serarchList.items[i].title.Contains("코나"))
-                                            {
-                                                List<CardImage> cardImages = new List<CardImage>();
-                                                CardImage img = new CardImage();
-                                                img.Url = "";
-                                                cardImages.Add(img);
-
-                                                List<CardAction> cardButtons = new List<CardAction>();
-                                                CardAction[] plButton = new CardAction[1];
-                                                plButton[0] = new CardAction()
-                                                {
-                                                    Value = Regex.Replace(serarchList.items[i].link, "amp;", ""),
-                                                    Type = "openUrl",
-                                                    Title = "기사 바로가기"
-                                                };
-                                                cardButtons = new List<CardAction>(plButton);
-
-                                                if (activity.ChannelId == "facebook")
-                                                {
-                                                    LinkHeroCard card = new LinkHeroCard()
-                                                    {
-                                                        Title = searchTitle,
-                                                        Subtitle = null,
-                                                        Text = searchText,
-                                                        Images = cardImages,
-                                                        Buttons = cardButtons,
-                                                        Link = null
-                                                    };
-                                                    var attachment = card.ToAttachment();
-                                                    intentNoneReply.Attachments.Add(attachment);
-                                                }
-                                                else
-                                                {
-                                                    LinkHeroCard card = new LinkHeroCard()
-                                                    {
-                                                        Title = searchTitle,
-                                                        Subtitle = null,
-                                                        Text = searchText,
-                                                        Images = cardImages,
-                                                        Buttons = null,
-                                                        Link = Regex.Replace(serarchList.items[i].link, "amp;", "")
-                                                    };
-                                                    var attachment = card.ToAttachment();
-                                                    intentNoneReply.Attachments.Add(attachment);
-                                                }
-                                            }
-                                        }
-                                    }
-                                    //await connector.Conversations.SendToConversationAsync(intentNoneReply);
-                                    //replyresult = "S";
-
-                                    if (intentNoneReply.Attachments.Count == 0)
-                                    {
-                                        sorryflag = true;
-                                    }
-                                    else
-                                    {
-                                        //await connector.Conversations.SendToConversationAsync(intentNoneReply);
-                                        SetActivity(intentNoneReply);
-                                        replyresult = "S";
-                                    }
-
-                                }
-                                else
-                                {
-                                    //System.Diagnostics.Debug.WriteLine("Error 발생=" + status);
-                                    sorryflag = true;
-                                }
-                            }
-                            else
-                            {
-                                sorryflag = true;
-                            }
-                            */
                             if (sorryflag)
                             {
                                 //Sorry Message 
@@ -778,28 +645,9 @@ namespace DooChatBot
                 }
                 finally
                 {
-                    // facebook 환경에서 text만 있는 멘트를 제외하고 carousel 등록
-                    if (!(activity.ChannelId == "facebook" && reply1.Text != ""))
-                    {
-                        reply1.AttachmentLayout = AttachmentLayoutTypes.Carousel;
-                    }
-                    if (!(activity.ChannelId == "facebook" && reply2.Text != ""))
-                    {
-                        reply2.AttachmentLayout = AttachmentLayoutTypes.Carousel;
-                    }
-                    if (!(activity.ChannelId == "facebook" && reply3.Text != ""))
-                    {
-                        reply3.AttachmentLayout = AttachmentLayoutTypes.Carousel;
-                    }
-                    if (!(activity.ChannelId == "facebook" && reply4.Text != ""))
-                    {
-                        reply4.AttachmentLayout = AttachmentLayoutTypes.Carousel;
-                    }
-
-
-
                     if (reply1.Attachments.Count != 0 || reply1.Text != "")
                     {
+                        Debug.WriteLine("* reply1 : " + reply1.Text);
                         await connector.Conversations.SendToConversationAsync(reply1);
                     }
                     if (reply2.Attachments.Count != 0 || reply2.Text != "")
@@ -814,25 +662,6 @@ namespace DooChatBot
                     {
                         await connector.Conversations.SendToConversationAsync(reply4);
                     }
-
-                    //페이스북에서 남은 카드가 있는경우
-                    if (activity.ChannelId.Equals("facebook") && fbLeftCardCnt > 0)
-                    {
-                        Activity replyToFBConversation = activity.CreateReply();
-                        replyToFBConversation.Recipient = activity.From;
-                        replyToFBConversation.Type = "message";
-                        replyToFBConversation.Attachments = new List<Attachment>();
-                        replyToFBConversation.AttachmentLayout = AttachmentLayoutTypes.Carousel;
-
-                        replyToFBConversation.Attachments.Add(
-                            GetHeroCard_facebookMore(
-                            "", "",
-                            fbLeftCardCnt + "개의 컨테츠가 더 있습니다.",
-                            new CardAction(ActionTypes.ImBack, "더 보기", value: MessagesController.queryStr))
-                        );
-                        await connector.Conversations.SendToConversationAsync(replyToFBConversation);
-                        replyToFBConversation.Attachments.Clear();
-                    }
                 }
             }
             else
@@ -846,21 +675,6 @@ namespace DooChatBot
 
         private Activity HandleSystemMessage(Activity message)
         {
-            if (message.Type == ActivityTypes.DeleteUserData)
-            {
-            }
-            else if (message.Type == ActivityTypes.ConversationUpdate)
-            {
-            }
-            else if (message.Type == ActivityTypes.ContactRelationUpdate)
-            {
-            }
-            else if (message.Type == ActivityTypes.Typing)
-            {
-            }
-            else if (message.Type == ActivityTypes.Ping)
-            {
-            }
             return null;
         }
 

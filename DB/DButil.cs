@@ -285,10 +285,11 @@ namespace DooChatBot.DB
                         Title = dlg.cardTitle,
                         Text = dlg.cardText
                     };
+                   // Debug.WriteLine("* CARD TEXT ===" + plCard.Text);
                     returnAttachment = plCard.ToAttachment();
                 }
 
-
+                
             }
             else if (dlg.dlgType.Equals(MessagesController.MEDIADLG))
             {
@@ -347,9 +348,9 @@ namespace DooChatBot.DB
                     }
                 }
 
-                if (dlg.btn3Type != null)
+                if (dlg.btn3Type != null )
                 {
-
+                    
                     CardAction plButton = new CardAction();
 
                     HistoryLog("CARD BTN3 START");
@@ -360,7 +361,7 @@ namespace DooChatBot.DB
                         Title = dlg.btn3Title
                     };
                     cardButtons.Add(plButton);
-
+                    
                 }
 
                 if (dlg.btn4Type != null)
@@ -534,7 +535,7 @@ namespace DooChatBot.DB
             }
 
 
-            if (activity.ChannelId.Equals("facebook") && cardButtons.Count < 1 && cardImages.Count < 1)
+            if(activity.ChannelId.Equals("facebook") && cardButtons.Count < 1 && cardImages.Count < 1)
             {
                 HistoryLog("FB CARD BTN1 START channelID.Equals(facebook) && cardButtons.Count < 1 && cardImages.Count < 1");
                 Activity reply_facebook = activity.CreateReply();
@@ -590,7 +591,7 @@ namespace DooChatBot.DB
                         };
                         returnAttachment = plCard.ToAttachment();
                     }
-
+                    
                 }
             }
 
