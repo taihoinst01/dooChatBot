@@ -334,7 +334,23 @@ namespace DooChatBot
                         luisEntities = cacheList.luisEntities;
 
                         //String fullentity = db.SearchCommonEntities;
-                        String fullentity = db.SearchCommonEntities+plusEntity;
+                        String fullentity_ = db.SearchCommonEntities+plusEntity;
+                        String[] DupCheckArray = fullentity_.Split(',');
+                        String[] DupCheck = DupCheckArray.Distinct().ToArray();
+                        String fullentity = "";
+                        for (int i=0; i<DupCheck.Length; i++)
+                        {
+                            if (i == 0)
+                            {
+                                fullentity = DupCheck[i];
+                            }
+                            else
+                            {
+                                fullentity = fullentity + "," + DupCheck[i];
+                            }
+                            
+                        }
+
                         DButil.HistoryLog("fullentity : " + fullentity);
                         Debug.WriteLine("fullentity log : " + fullentity);
 
