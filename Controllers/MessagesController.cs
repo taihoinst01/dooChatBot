@@ -33,7 +33,7 @@ namespace DooChatBot
         public static readonly string MEDIADLG = "4";
         public static readonly int MAXFACEBOOKCARDS = 10;
 
-        public static Configuration rootWebConfig = WebConfigurationManager.OpenWebConfiguration("/");
+        public static Configuration rootWebConfig = WebConfigurationManager.OpenWebConfiguration("/DooChatBot");
         const string chatBotAppID = "appID";
         public static int appID = Convert.ToInt32(rootWebConfig.ConnectionStrings.ConnectionStrings[chatBotAppID].ToString());
 
