@@ -1089,5 +1089,37 @@ namespace DooChatBot.DB
                 return entityarr;
             }
         }
+
+        public String EntityOrder(String entitites)
+        {
+            SqlDataReader rdr = null;
+            string resultEntities = "";
+
+            using (SqlConnection conn = new SqlConnection(connStr))
+            {
+                conn.Open();
+                SqlCommand cmd = new SqlCommand();
+                cmd.Connection = conn;
+
+                cmd.CommandText += "SELECT RESULT AS ENTITIES FROM FN_ENTITY_ORDERBY_ADD(@entities_data) ";
+
+                cmd.Parameters.AddWithValue("@entities_data", entitites);
+
+                rdr = cmd.ExecuteReader(CommandBehavior.CloseConnection);
+
+                try
+                {
+                    while (rdr.Read())
+                    {
+                        resultEntities += rdr["ENTITIES"];
+                    }
+                }
+                catch (Exception e)
+                {
+                    Debug.WriteLine(e.Message);
+                }
+            }
+            return resultEntities;
+        }
     }
 }

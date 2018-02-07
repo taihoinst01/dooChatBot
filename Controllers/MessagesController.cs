@@ -228,10 +228,10 @@ namespace DooChatBot
 
                 qTempTable = new Hashtable();
                 qTempTable.Add(1, "VPN+");
-                qTempTable.Add(2, "워터마크+");
-                qTempTable.Add(3, "비업무사이트+");
-                qTempTable.Add(4, "USB+");
-                qTempTable.Add(5, "파일업로드+");
+                qTempTable.Add(2, "워터마크+해지");
+                qTempTable.Add(3, "비업무사이트+접속,비업무사이트,권한");
+                qTempTable.Add(4, "USB+쓰기,권한");
+                qTempTable.Add(5, "파일업로드+인터넷,파일업로드,권한");
             }
             else if (activity.Type == ActivityTypes.Message)
             {
@@ -337,20 +337,22 @@ namespace DooChatBot
                         String fullentity_ = db.SearchCommonEntities+plusEntity;
                         String[] DupCheckArray = fullentity_.Split(',');
                         String[] DupCheck = DupCheckArray.Distinct().ToArray();
+                        //Array.Sort(DupCheck);
+                        String fullentity_make = "";
                         String fullentity = "";
                         for (int i=0; i<DupCheck.Length; i++)
                         {
                             if (i == 0)
                             {
-                                fullentity = DupCheck[i];
+                                fullentity_make = DupCheck[i];
                             }
                             else
                             {
-                                fullentity = fullentity + "," + DupCheck[i];
+                                fullentity_make = fullentity_make + "," + DupCheck[i];
                             }
                             
                         }
-
+                        fullentity = db.EntityOrder(fullentity_make);
                         DButil.HistoryLog("fullentity : " + fullentity);
                         Debug.WriteLine("fullentity log : " + fullentity);
 
