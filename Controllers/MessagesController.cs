@@ -618,7 +618,8 @@ namespace DooChatBot
                     List<TextList> text = new List<TextList>();
                     if (sorryMessageCheck == 0)
                     {
-                        text = db.SelectSorryDialogText("5");
+                        //text = db.SelectSorryDialogText("5");
+                        text = db.SelectSorryDialogText("4");
                     }
                     else
                     {
