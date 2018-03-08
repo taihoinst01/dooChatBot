@@ -435,58 +435,7 @@ namespace DooChatBot
                             for (int m = 0; m < MessagesController.relationList.Count; m++)
                             {
                                 DialogList dlg = db.SelectDialog(MessagesController.relationList[m].dlgId);
-                                qTempTable = new Hashtable();
-                                String test = dlg.cardText;
-                                String test2 = Regex.Replace(test, @"[^a-zA-Z0-9ㄱ-힣]", "", RegexOptions.Singleline);
-                                String onlyNumCheck = Regex.Replace(test2, @"\D", "");
-
-                                Regex cntStr = new Regex("12345"); //1.2.3.4. 이런식으로 넘어갈 테니까...답변 중에 12345 가 연속적으로 나오는 것은 없다.
-                                int cntStrCount = int.Parse(cntStr.Matches(onlyNumCheck, 0).Count.ToString());
-                                
-                                if(cntStrCount > 0)
-                                {
-                                    for (int i = 0; i < 10; i++)
-                                    {
-                                        test2 = test2.Replace("1", "#");
-                                        test2 = test2.Replace("2", "#");
-                                        test2 = test2.Replace("3", "#");
-                                        test2 = test2.Replace("4", "#");
-                                        test2 = test2.Replace("5", "#");
-                                        test2 = test2.Replace("6", "#");
-                                        test2 = test2.Replace("7", "#");
-                                        test2 = test2.Replace("8", "#");
-                                        test2 = test2.Replace("9", "#");
-                                    }
-                                    test2.Replace("##", "#");
-
-                                    String[] tempData = test2.Split('#');
-                                    
-                                    for (int j = 0; j < tempData.Length; j++)
-                                    {
-                                        //여기의 데이터는 예외사항이다.
-                                        if(tempData[j].Equals("사용기간")||
-                                            tempData[j].Equals("결재라인") || 
-                                            tempData[j].Equals("요청서작성방법") || 
-                                            tempData[j].Equals("대리신청") || 
-                                            tempData[j].Equals("권한회수") || 
-                                            tempData[j].Equals("권한상태") ||
-                                            tempData[j].Equals("웹하드사이트접속") ||
-                                            tempData[j].Equals("쇼핑사이트접속")
-                                            )
-                                        {
-                                            qTempTable.Add(j, tempData[j] + "+");//위의값은 공통사항이다.
-                                        }
-                                        else
-                                        {
-                                            qTempTable.Add(j, tempData[j] + "+" + fullentity);//entity 값도 같이 넣는다.
-                                        }
-                                    }
-                                }
-                                else
-                                {
-
-                                }
-                                
+                                                                
                                 Activity commonReply = activity.CreateReply();
                                 Attachment tempAttachment = new Attachment();
                                 DButil.HistoryLog("dlg.dlgType : " + dlg.dlgType);
@@ -506,6 +455,58 @@ namespace DooChatBot
                                 }
                                 else
                                 {
+                                    qTempTable = new Hashtable();
+                                    String test = dlg.cardText;
+                                    String test2 = Regex.Replace(test, @"[^a-zA-Z0-9ㄱ-힣]", "", RegexOptions.Singleline);
+                                    String onlyNumCheck = Regex.Replace(test2, @"\D", "");
+
+                                    Regex cntStr = new Regex("12345"); //1.2.3.4. 이런식으로 넘어갈 테니까...답변 중에 12345 가 연속적으로 나오는 것은 없다.
+                                    int cntStrCount = int.Parse(cntStr.Matches(onlyNumCheck, 0).Count.ToString());
+
+                                    if (cntStrCount > 0)
+                                    {
+                                        for (int i = 0; i < 10; i++)
+                                        {
+                                            test2 = test2.Replace("1", "#");
+                                            test2 = test2.Replace("2", "#");
+                                            test2 = test2.Replace("3", "#");
+                                            test2 = test2.Replace("4", "#");
+                                            test2 = test2.Replace("5", "#");
+                                            test2 = test2.Replace("6", "#");
+                                            test2 = test2.Replace("7", "#");
+                                            test2 = test2.Replace("8", "#");
+                                            test2 = test2.Replace("9", "#");
+                                        }
+                                        test2.Replace("##", "#");
+
+                                        String[] tempData = test2.Split('#');
+
+                                        for (int j = 0; j < tempData.Length; j++)
+                                        {
+                                            //여기의 데이터는 예외사항이다.
+                                            if (tempData[j].Equals("사용기간") ||
+                                                tempData[j].Equals("결재라인") ||
+                                                tempData[j].Equals("요청서작성방법") ||
+                                                tempData[j].Equals("대리신청") ||
+                                                tempData[j].Equals("권한회수") ||
+                                                tempData[j].Equals("권한상태") ||
+                                                tempData[j].Equals("웹하드사이트접속") ||
+                                                tempData[j].Equals("쇼핑사이트접속")
+                                                )
+                                            {
+                                                qTempTable.Add(j, tempData[j] + "+");//위의값은 공통사항이다.
+                                            }
+                                            else
+                                            {
+                                                qTempTable.Add(j, tempData[j] + "+" + fullentity);//entity 값도 같이 넣는다.
+                                            }
+                                        }
+                                    }
+                                    else
+                                    {
+
+                                    }
+
                                     DButil.HistoryLog("facebook dlg.dlgId : " + dlg.dlgId);
                                     
                                     tempAttachment = dbutil.getAttachmentFromDialog(dlg, activity);
