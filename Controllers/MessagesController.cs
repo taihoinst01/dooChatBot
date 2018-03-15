@@ -231,7 +231,8 @@ namespace DooChatBot
                 qTempTable.Add(2, "워터마크+해지");
                 qTempTable.Add(3, "비업무사이트+");
                 qTempTable.Add(4, "USB+");
-                qTempTable.Add(5, "파일업로드+인터넷,파일업로드");
+                //qTempTable.Add(5, "파일업로드+인터넷,파일업로드");
+                qTempTable.Add(5, "파일업로드+권한,인터넷,파일업로드");
             }
             else if (activity.Type == ActivityTypes.Message)
             {
